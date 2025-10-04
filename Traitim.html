@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Trái Tim Lý Tuân 💗</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: radial-gradient(ellipse at center, #000 0%, #020202 100%);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* Ảnh nền mờ ảo */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: url('https://i.imgur.com/1vDB1qZ.jpeg') center/cover no-repeat;
+      opacity: 0.2;
+      filter: blur(8px);
+      z-index: 0;
+    }
+
+    canvas {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      z-index: 2;
+      animation: beat 1.3s infinite ease-in-out;
+      filter: drop-shadow(0 0 30px #ff5ca4);
+    }
+
+    @keyframes beat {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(0.9); }
+      50% { transform: scale(1.1); }
+      75% { transform: scale(0.95); }
+    }
+
+    h1 {
+      position: relative;
+      z-index: 3;
+      margin-top: 40px;
+      font-size: 40px;
+      color: #ff70b8;
+      text-shadow: 0 0 15px #ff2b83, 0 0 30px #ff2b83;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 10px #ff2b83, 0 0 20px #ff2b83; }
+      to { text-shadow: 0 0 25px #ff007f, 0 0 50px #ff007f; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="pinkboard"></canvas>
+  <h1>💖 Anh Yêu Em 🌹</h1>
+
+  <script>
+  var settings = {
+    particles: {
+      length: 2000,
+      duration: 2,
+      velocity: 100,
+      effect: -1.3,
+      size: 13,
+    },
+  };
+
+  var Point = function(x, y) {
+    this.x = x || 0;
+    this.y = y || 0;
+  };
+  Point.prototype.clone = function() { return new Point(this.x, this.y); };
+  Point.prototype.length = function(len) {
+    if (typeof len === 'undefined') return Math.sqrt(this.x * this.x + this.y * this.y);
+    this.normalize();
+    this.x *= len; this.y *= len;
+    return this;
+  };
+  Point.prototype.normalize = function() {
+    var len = this.length();
+    this.x /= len; this.y /= len;
+    return this;
+  };
+
+  var Particle = function() {
+    this.position = new Point();
+    this.velocity = new Point();
+    this.acceleration = new Point();
+    this.age = 0;
+  };
+  Particle.prototype.initialize = function(x, y, dx, dy) {
+    this.position.x = x; this.position.y = y;
+    this.velocity.x = dx; this.velocity.y = dy;
+    this.acceleration.x = dx * settings.particles.effect;
+    this.acceleration.y = dy * settings.particles.effect;
+    this.age = 0;
+  };
+  Particle.prototype.update = function(dt) {
+    this.position.x += this.velocity.x * dt;
+    this.position.y += this.velocity.y * dt;
+    this.velocity.x += this.acceleration.x * dt;
+    this.velocity.y += this.acceleration.y * dt;
+    this.age += dt;
+  };
+  Particle.prototype.draw = function(ctx, image) {
+    function ease(t) { return (--t) * t * t + 1; }
+    var size = image.width * ease(this.age / settings.particles.duration);
+    ctx.globalAlpha = 1 - this.age / settings.particles.duration;
+    ctx.drawImage(image, this.position.x - size / 2, this.position.y - size / 2, size, size);
+  };
+
+  var ParticlePool = function(length) {
+    this.particles = new Array(length);
+    for (var i = 0; i < length; i++) this.particles[i] = new Particle();
+    this.firstActive = 0;
+    this.firstFree = 0;
+    this.duration = settings.particles.duration;
+  };
+  ParticlePool.prototype.add = function(x, y, dx, dy) {
+    this.particles[this.firstFree].initialize(x, y, dx, dy);
+    this.firstFree++;
+    if (this.firstFree === this.particles.length) this.firstFree = 0;
+    if (this.firstActive === this.firstFree) {
+      this.firstActive++;
+      if (this.firstActive === this.particles.length) this.firstActive = 0;
+    }
+  };
+  ParticlePool.prototype.update = function(dt) {
+    var i;
+    if (this.firstActive < this.firstFree) {
+      for (i = this.firstActive; i < this.firstFree; i++) this.particles[i].update(dt);
+    }
+    if (this.firstFree < this.firstActive) {
+      for (i = this.firstActive; i < this.particles.length; i++) this.particles[i].update(dt);
+      for (i = 0; i < this.firstFree; i++) this.particles[i].update(dt);
+    }
+    while (this.particles[this.firstActive].age >= this.duration && this.firstActive !== this.firstFree) {
+      this.firstActive++;
+      if (this.firstActive === this.particles.length) this.firstActive = 0;
+    }
+  };
+  ParticlePool.prototype.draw = function(ctx, image) {
+    var i;
+    if (this.firstActive < this.firstFree) {
+      for (i = this.firstActive; i < this.firstFree; i++) this.particles[i].draw(ctx, image);
+    }
+    if (this.firstFree < this.firstActive) {
+      for (i = this.firstActive; i < this.particles.length; i++) this.particles[i].draw(ctx, image);
+      for (i = 0; i < this.firstFree; i++) this.particles[i].draw(ctx, image);
+    }
+  };
+
+  (function(canvas) {
+    var ctx = canvas.getContext('2d'),
+        particles = new ParticlePool(settings.particles.length),
+        particleRate = settings.particles.length / settings.particles.duration,
+        time;
+
+    function pointOnHeart(t) {
+      return new Point(
+        160 * Math.pow(Math.sin(t), 3),
+        130 * Math.cos(t) - 50 * Math.cos(2 * t) - 20 * Math.cos(3 * t) - 10 * Math.cos(4 * t) + 25
+      );
+    }
+
+    var image = (function() {
+      var c = document.createElement('canvas'), ctx = c.getContext('2d');
+      c.width = settings.particles.size; c.height = settings.particles.size;
+      function to(t) {
+        var p = pointOnHeart(t);
+        p.x = settings.particles.size / 2 + p.x * settings.particles.size / 350;
+        p.y = settings.particles.size / 2 - p.y * settings.particles.size / 350;
+        return p;
+      }
+      ctx.beginPath();
+      var t = -Math.PI, p = to(t);
+      ctx.moveTo(p.x, p.y);
+      while (t < Math.PI) {
+        t += 0.01; p = to(t); ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      var grad = ctx.createRadialGradient(c.width/2, c.height/2, 5, c.width/2, c.height/2, c.width/2);
+      grad.addColorStop(0, "#ff5ca4");
+      grad.addColorStop(1, "#ff007f");
+      ctx.fillStyle = grad;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "#ff2b83";
+      ctx.fill();
+      var img = new Image();
+      img.src = c.toDataURL();
+      return img;
+    })();
+
+    function render() {
+      requestAnimationFrame(render);
+      var newTime = new Date().getTime() / 1000,
+          deltaTime = newTime - (time || newTime);
+      time = newTime;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var amount = particleRate * deltaTime;
+      for (var i = 0; i < amount; i++) {
+        var pos = pointOnHeart(Math.PI - 2 * Math.PI * Math.random());
+        var dir = pos.clone().length(settings.particles.velocity);
+        particles.add(canvas.width / 2 + pos.x, canvas.height / 2 - pos.y, dir.x, -dir.y);
+      }
+      particles.update(deltaTime);
+      particles.draw(ctx, image);
+    }
+
+    function onResize() {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+    window.onresize = onResize;
+    setTimeout(function() { onResize(); render(); }, 10);
+  })(document.getElementById('pinkboard'));
+  </script>
+</body>
+</html>
